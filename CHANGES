@@ -8,6 +8,54 @@
   * page: https://github.com/jrh13/hol-light/commits/master         *
   * *****************************************************************
 
+Wed 25th Feb 2026       Library/ringtheory.ml, Library/fieldtheory.ml
+
+Added some material about algebraically closed fields, with a definition
+
+        algebraically_closed_field
+
+and new theorems
+
+        ALGEBRAICALLY_CLOSED_FIELD_DECOMPOSE
+        ALGEBRAICALLY_CLOSED_FIELD_EQ_IRREDUCIBLES
+        ALGEBRAICALLY_CLOSED_FIELD_EQ_SPLITS
+        ALGEBRAICALLY_CLOSED_FIELD_IMP_FIELD
+        ALGEBRAICALLY_CLOSED_FIELD_IMP_INFINITE
+        ALGEBRAICALLY_CLOSED_FIELD_ISOMORPHIC_IMAGE
+        ALGEBRAICALLY_CLOSED_FIELD_NO_PROPER_ALGEBRAIC_EXTENSION
+        ALGEBRAIC_CLOSURE_EXISTS
+        ALGEBRAIC_CLOSURE_EXISTS_ID
+        ALGEBRAIC_CLOSURE_EXTEND_HOMOMORPHISM
+        ALGEBRAIC_CLOSURE_UNIQUE
+        ALGEBRAIC_CLOSURE_UNIQUE_EXPLICIT
+        FIELD_RING_HOMOMORPHISM_MONOMORPHISM
+        INFINITE_INTEGRAL_DOMAIN_POLY_EVAL_ALL_ZERO
+        ISOMORPHIC_RING_ALGEBRAICALLY_CLOSED_FIELD
+        POLY_COMPOSE_HOMOMORPHISM_ADD
+        POLY_COMPOSE_HOMOMORPHISM_CONST
+        POLY_COMPOSE_HOMOMORPHISM_MUL
+        POLY_COMPOSE_HOMOMORPHISM_NEG
+        POLY_COMPOSE_HOMOMORPHISM_POW
+        POLY_COMPOSE_HOMOMORPHISM_SUB
+        POLY_COMPOSE_HOMOMORPHISM_VAR
+        POLY_DEG_1_ROOT
+        POLY_DEG_MUL_X_MINUS_A
+        POLY_DEG_X_MINUS_A
+        POLY_EVALUATE_RING_PRODUCT
+        POLY_EVAL_RING_PRODUCT
+        POLY_EXTEND_RING_PRODUCT
+        POLY_X_MINUS_A_IN_CARRIER
+        POLY_X_MINUS_A_NONZERO
+        RING_HOMOMORPHISM_EPIMORPHISM_FACTOR
+        RING_POWERSERIES
+        SIMPLE_ALGEBRAIC_EXTEND_HOMOMORPHISM
+
+The existence proofs ALGEBRAIC_CLOSURE_EXISTS_ID and ALGEBRAIC_CLOSURE_EXISTS
+were done by John Harrison following Jelonek's paper "A simple proof of the
+existence of the algebraic closure of a field". The rest, such as various
+alternative characterizations and the uniqueness up to isomorphism, were
+written by Claude Opus 4.6.
+
 Sat 21st Feb 2026       100/cubedissection.ml [new file]
 
 Added a formalization of the impossibility of cube dissection into finitely
