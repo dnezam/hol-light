@@ -8,6 +8,143 @@
   * page: https://github.com/jrh13/hol-light/commits/master         *
   * *****************************************************************
 
+Thu 26th Feb 2026       Multivariate/metric.ml, Multivariate/paths.ml
+
+Added major new results about path-connectedness in general metric
+spaces, together with generalizations of existing Euclidean-specific
+theorems, almost entirely written by Claude Code (Opus 4.6).
+
+The Alexandroff-Hausdorff theorem (ALEXANDROFF_HAUSDORFF: every
+compact metrizable space is a continuous image of the Cantor space)
+and the Hahn-Mazurkiewicz theorem (HAHN_MAZURKIEWICZ: a metrizable
+continuum is a Peano continuum iff it is a continuous image of the
+unit interval) are entirely new results, not generalizations of
+anything previously in HOL Light. Their proofs go through a chain
+of substantial lemmas: the Alexandroff-Hausdorff embedding provides
+dense maps from Cantor space into compact metric spaces, and a
+gap-filling extension lemma (PEANO_GAP_FILLING_EXTENSION) for
+locally connected continua then yields the full Hahn-Mazurkiewicz
+characterization.
+
+From Hahn-Mazurkiewicz it follows that compact connected locally
+connected metric spaces are path-connected
+(COMPACT_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED). This
+is then extended to the locally compact case by expressing open
+subsets as unions of compact connected locally connected sets
+(LOCALLY_CONNECTED_CONTINUUM_SPACE), then to complete metric
+spaces (MCOMPLETE_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED,
+often called Menger's theorem). The existing Euclidean theorem
+LOCALLY_COMPACT_CONNECTED_IMP_PATH_CONNECTED assumed local
+compactness; the new general version for complete metric spaces is
+strictly stronger, since completeness is a weaker hypothesis than
+local compactness.
+
+New Euclidean specializations in paths.ml include optimal G_delta
+versions: GDELTA_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED
+gives path-connectedness under the weakest natural hypothesis for
+R^n, since G_delta is equivalent to completely metrizable in
+Euclidean space.
+
+Supporting infrastructure includes: well-chained set refinements
+in open covers (CHAIN_FROM_OPEN_COVER), connected chain unions
+(CONNECTED_IN_CHAIN_UNIONS), compact nested intersections
+(COMPACT_NESTED_INTERS), fine connected covers of open connected
+sets (OPEN_CONNECTED_FINE_COVER), the full chain hierarchy
+construction for dyadic approximation (CHAIN_HIERARCHY), and
+closure of dyadic rationals in the unit interval
+(CLOSURE_OF_DYADIC_RATIONALS_IN_UNIT_INTERVAL). New theorems in
+Multivariate/metric.ml:
+
+        ALEXANDROFF_HAUSDORFF
+        CHAIN_FROM_OPEN_COVER
+        CHAIN_HIERARCHY
+        CHAIN_IN_OPEN_CONNECTED_SET
+        CHAIN_REFINEMENT_STEP
+        CLOSURE_OF_DYADIC_RATIONALS_IN_UNIT_INTERVAL
+        COMPACT_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED
+        COMPACT_IN_LOCALLY_CONNECTED_EQ_FCCOVERABLE_SPACE_ALT
+        COMPACT_LOCALLY_CONNECTED_NEARBY_PATH
+        COMPACT_METRIZABLE_LOCALLY_CONNECTED_IMP_LOCALLY_PATH_CONNECTED
+        COMPACT_METRIZABLE_PEANO_IMP_PATH_CONNECTED
+        COMPACT_NESTED_INTERS
+        COMPLETELY_METRIZABLE_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED
+        COMPLETELY_METRIZABLE_LOCALLY_PATH_CONNECTED_EQ_LOCALLY_CONNECTED
+        CONNECTED_IN_CHAIN_UNIONS
+        DENSE_FUNCTION_ON_DYADIC
+        FCCOVERABLE_IN_COMPACT_LOCALLY_CONNECTED
+        FINITE_CONNECTED_COMPONENTS_CLOPEN_UNION
+        FINITE_CONNECTED_COMPONENTS_COMPACT_LOCALLY_CONNECTED
+        HAHN_MAZURKIEWICZ
+        HAHN_MAZURKIEWICZ_IMP
+        LOCALLY_COMPACT_CONNECTED_IMP_PATH_CONNECTED_SPACE
+        LOCALLY_COMPACT_LOCALLY_CONNECTED_IMP_LOCALLY_PATH_CONNECTED_SPACE
+        LOCALLY_COMPACT_LOCALLY_PATH_CONNECTED_EQ_LOCALLY_CONNECTED_SPACE
+        LOCALLY_COMPACT_SPACE_IMP_GDELTA_IN
+        LOCALLY_CONNECTED_CONTINUUM_SPACE
+        LOCALLY_CONSTANT_REFINEMENT
+        LOCALLY_FCCOVERABLE_SPACE
+        LOCALLY_FCCOVERABLE_SPACE_CHAIN
+        MCOMPLETE_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED
+        MCOMPLETE_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED_IN
+        MCOMPLETE_DYADIC_APPROXIMATION
+        MCOMPLETE_IMBEDDING_IN_LC_CONTINUUM
+        MCOMPLETE_IMBEDDING_IN_LC_CONTINUUM_IN
+        MCOMPLETE_IN_LOCALLY_COMPACT_IMP_LOCALLY_COMPACT
+        MCOMPLETE_LOCALLY_CONNECTED_IMP_LOCALLY_PATH_CONNECTED
+        MCOMPLETE_LOCALLY_PATH_CONNECTED_EQ_LOCALLY_CONNECTED
+        OPEN_CONNECTED_FINE_COVER
+        PEANO_GAP_FILLING_EXTENSION
+        SECOND_COUNTABLE_CLOSED_MAP_IMAGE
+        SEMI_LOCALLY_CONNECTED_COMPACT_SPACE
+        SEMI_LOCALLY_CONNECTED_CONNECTED
+        SEMI_LOCALLY_CONNECTED_GEN_SPACE
+        SEPARABLE_METRIZABLE_IMP_SECOND_COUNTABLE
+
+New theorems in Multivariate/paths.ml:
+
+        COMPACT_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED_EUCLIDEAN
+        FINITE_CONNECTED_COMPONENTS_COMPACT_LOCALLY_CONNECTED_EUCLIDEAN
+        GDELTA_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED
+        GDELTA_LOCALLY_CONNECTED_IMP_LOCALLY_PATH_CONNECTED
+        GDELTA_LOCALLY_PATH_CONNECTED_EQ_LOCALLY_CONNECTED
+        LOCALLY_COMPACT_CONNECTED_IMP_PATH_CONNECTED_EUCLIDEAN
+        LOCALLY_COMPACT_LOCALLY_CONNECTED_IMP_LOCALLY_PATH_CONNECTED_EUCLIDEAN
+        LOCALLY_COMPACT_LOCALLY_PATH_CONNECTED_EQ_LOCALLY_CONNECTED_EUCLIDEAN
+        LOCALLY_COMPACT_PATH_CONNECTED_EQ_CONNECTED_EUCLIDEAN
+        MCOMPLETE_CONNECTED_LOCALLY_CONNECTED_IMP_PATH_CONNECTED_EUCLIDEAN
+        MCOMPLETE_IMP_LOCALLY_COMPACT_EUCLIDEAN
+        MCOMPLETE_LOCALLY_CONNECTED_IMP_LOCALLY_PATH_CONNECTED_EUCLIDEAN
+        MCOMPLETE_LOCALLY_PATH_CONNECTED_EQ_LOCALLY_CONNECTED_EUCLIDEAN
+
+In Multivariate/paths.ml, three existing long Euclidean-specific proofs
+are replaced by short bridge derivations from the new general metric
+space versions: SEMI_LOCALLY_CONNECTED (222 lines reduced to 19),
+SEMI_LOCALLY_CONNECTED_GEN (65 lines reduced to 19), and
+LOCALLY_COMPACT_CONNECTED_IMP_PATH_CONNECTED (662 lines reduced to 15).
+All theorem statements are preserved; only the proofs change.
+
+The general metric space versions in metric.ml use a _SPACE suffix to
+distinguish them from existing Euclidean-specific theorems of the same
+logical content in paths.ml. For example, the general version is
+LOCALLY_COMPACT_CONNECTED_IMP_PATH_CONNECTED_SPACE while the
+Euclidean version retains its original name
+LOCALLY_COMPACT_CONNECTED_IMP_PATH_CONNECTED.
+
+Thu 26th Feb 2026       lib.ml, metis.ml
+
+Incorporated a cleanup and rationalization of METIS from Daniel Nezamabadi.
+The main changes are:
+
+ * Applying the bug fixes from the upstream metis repo
+
+ * Inlining various definitions, afterwards simplifying where reasonable
+
+ * Removing duplicate and unused definitions
+
+ * Replacing {foo=foo} pattern matching with {foo}
+
+ * Removing the Order module in favor of OCaml's use of integers
+
 Wed 25th Feb 2026       Library/ringtheory.ml, Library/fieldtheory.ml
 
 Added some material about algebraically closed fields, with a definition
