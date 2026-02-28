@@ -55,7 +55,7 @@ let null = function
     [] -> true
   | _  -> false
 let tabulate (n,f) =
-  let rec go i = if i == n then [] else f i :: go (i+1)
+  let rec go i = if i = n then [] else f i :: go (i+1)
   in  go 0
 let find p l = try Some (List.find p l) with Not_found -> None;;
 let rec first f = function
@@ -99,7 +99,7 @@ let bind opt f =
   | Some x -> f x
   | None   -> None
 
-let value opt ~default =
+let value opt default =
   match opt with
   | Some x -> x
   | None   -> default
@@ -119,7 +119,7 @@ let critical x = x;;
 (* Characters (MF).                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-let isDigit c = '0' <= c && c <= '9'
+let isDigit c = Char.compare '0' c <= 0 && Char.compare c '9' <= 0
 
 (* ------------------------------------------------------------------------- *)
 (* Exceptions.                                                               *)
@@ -7336,7 +7336,7 @@ let weightTerm weight =
       let rec wt m c = function
           [] -> Weight (m,c)
         | (Term.Var v :: tms) ->
-            let n = Option.value (Name.Map.peek m v) ~default:0
+            let n = Option.value (Name.Map.peek m v) 0
           in
             wt (Name.Map.insert m (v, n + 1)) (c + 1) tms
         | (Term.Fn (f,a) :: tms) ->
