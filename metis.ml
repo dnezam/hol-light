@@ -749,8 +749,7 @@ let rec treeUnion compareKey f f2 tree1 tree2 =
       | Tree node2 -> nodeUnion compareKey f f2 node1 node2
 
 and nodeUnion compareKey f f2 node1 node2 =
-    if node1 == node2 then nodeMapPartial f2 node1
-    else
+    if node1 == node2 then nodeMapPartial f2 node1 else
         let Node {priority;left;key;value;right} = node2
 
         in let (l,kvo,r) = nodePartition compareKey key node1
@@ -812,8 +811,8 @@ let rec treeUnionDomain compareKey tree1 tree2 =
       match tree2 with
         Empty -> tree1
       | Tree node2 ->
-        if node1 == node2 then tree2
-        else nodeUnionDomain compareKey node1 node2
+        if node1 == node2 then tree2 else
+        nodeUnionDomain compareKey node1 node2
 
 and nodeUnionDomain compareKey node1 node2 =
       let Node {priority;left;key;value;right} = node2
@@ -839,8 +838,8 @@ let rec treeIntersectDomain compareKey tree1 tree2 =
       match tree2 with
         Empty -> Empty
       | Tree node2 ->
-        if node1 == node2 then tree2
-        else nodeIntersectDomain compareKey node1 node2
+        if node1 == node2 then tree2 else
+        nodeIntersectDomain compareKey node1 node2
 
 and nodeIntersectDomain compareKey node1 node2 =
       let Node {priority;left;key;value;right} = node2
@@ -867,8 +866,7 @@ let rec treeDifferenceDomain compareKey t1 t2 =
       | Tree n2 -> nodeDifferenceDomain compareKey n1 n2
 
 and nodeDifferenceDomain compareKey n1 n2 =
-    if n1 == n2 then Empty
-    else
+    if n1 == n2 then Empty else
         let Node {priority;left;key;value;right} = n1
 
         in let (l,kvo,r) = nodePartition compareKey key n2
@@ -1013,13 +1011,13 @@ type ('key,'value) iterator =
 let fromSpineLeftToRightIterator nodes =
     match nodes with
       [] -> None
-    | Node {key;value;right} :: nodes ->
+    | node :: nodes -> let Node {key;value;right} = node in
       Some (Left_to_right_iterator ((key,value),right,nodes));;
 
 let fromSpineRightToLeftIterator nodes =
     match nodes with
       [] -> None
-    | Node {key;value;left} :: nodes ->
+    | node :: nodes -> let Node {key;value;left} = node in
       Some (Right_to_left_iterator ((key,value),left,nodes));;
 
 let addLeftToRightIterator nodes tree = fromSpineLeftToRightIterator (treeLeftSpine nodes tree);;
@@ -1394,8 +1392,7 @@ let count pred =
 (* ------------------------------------------------------------------------- *)
 
 let compare compareValue m1 m2 =
-    if m1 == m2 then 0
-    else
+    if m1 == m2 then 0 else
       let c = Useful.intCompare (size m1) (size m2) in
       if c <> 0 then c
       else
@@ -2175,7 +2172,7 @@ module Set = struct
   let all p s = Pset.all p s
   let count p s = Pset.count p s
 
-  let allNullary = all nullary;
+  let allNullary = all nullary;;
 end
 
 end
@@ -2199,7 +2196,7 @@ type function_t = functionName * int;;
 type const = functionName;;
 
 type term =
-    Var of Name.name
+    Tvar of Name.name
   | Fn of (Name.name * term list);;
 
 (* ------------------------------------------------------------------------- *)
@@ -2209,20 +2206,20 @@ type term =
 (* Variables *)
 
 let destVar = function
-    (Var v) -> v
+    (Tvar v) -> v
   | (Fn _) -> failwith "destVar";;
 
 let isVar = can destVar;;
 
 let equalVar v = function
-   (Var v') -> Name.equal v v'
+   (Tvar v') -> Name.equal v v'
   | _       -> false;;
 
 (* Functions *)
 
 let destFn = function
     (Fn f) -> f
-  | (Var _) -> failwith "destFn";;
+  | (Tvar _) -> failwith "destFn";;
 
 let isFn = can destFn;;
 
@@ -2237,7 +2234,7 @@ let fnFunction tm = (fnName tm, fnArity tm);;
 let functions tm =
   let rec letc fs = function
       [] -> fs
-    | (Var _ :: tms) -> letc fs tms
+    | (Tvar _ :: tms) -> letc fs tms
     | (Fn (n,l) :: tms) -> letc (Name_arity.Set.add fs (n, List.length l)) (l @ tms)
 
   in letc Name_arity.Set.empty [tm];;
@@ -2245,7 +2242,7 @@ let functions tm =
 let functionNames tm =
   let rec letc fs = function
       [] -> fs
-    | (Var _ :: tms) -> letc fs tms
+    | (Tvar _ :: tms) -> letc fs tms
     | (Fn (n,l) :: tms) -> letc (Name.Set.add fs n) (l @ tms)
   in letc Name.Set.empty [tm];;
 
@@ -2281,7 +2278,7 @@ let fN_SYMBOLS = 1;;
 let symbols tm =
   let rec sz n = function
       [] -> n
-    | (Var _ :: tms) -> sz (n + vAR_SYMBOLS) tms
+    | (Tvar _ :: tms) -> sz (n + vAR_SYMBOLS) tms
     | (Fn (letc,args) :: tms) -> sz (n + fN_SYMBOLS) (args @ tms)
   in sz 0 [tm];;
 
@@ -2293,14 +2290,13 @@ let compare tm1 tm2 =
   let rec cmp = function
       ([], []) -> 0
     | (tm1 :: tms1, tm2 :: tms2) ->
-        if tm1 == tm2 then cmp (tms1, tms2)
-        else
+        if tm1 == tm2 then cmp (tms1, tms2) else
           (match (tm1,tm2) with
-            (Var v1, Var v2) ->
+            (Tvar v1, Tvar v2) ->
               let c = Name.compare v1 v2 in
               if c <> 0 then c else cmp (tms1, tms2)
-          | (Var _, Fn _) -> -1
-          | (Fn _, Var _) -> 1
+          | (Tvar _, Fn _) -> -1
+          | (Fn _, Tvar _) -> 1
           | (Fn (f1,a1), Fn (f2,a2)) ->
               let c = Name.compare f1 f2 in
               if c <> 0 then c
@@ -2320,7 +2316,7 @@ type path = int list;;
 
 let rec subterm' = function
     (tm, []) -> tm
-  | (Var _, _ :: _) -> failwith "Term.subterm: Var"
+  | (Tvar _, _ :: _) -> failwith "Term.subterm: Var"
   | (Fn (_,tms), h :: t) ->
     if h >= List.length tms then failwith "Term.replace: Fn"
     else subterm' (List.nth tms h, t);;
@@ -2333,7 +2329,7 @@ let subterms tm =
         let f (n,arg) = (n :: path, arg)
         and acc = (List.rev path, tm) :: acc
         in match tm with
-          Var _ -> subtms (rest, acc)
+          Tvar _ -> subtms (rest, acc)
         | Fn (_,args) -> subtms ((List.map f (Mlist.enumerate args) @ rest), acc)
   in subtms ([([],tm)], []);;
 
@@ -2342,15 +2338,15 @@ let rec replace tm = function
     ([],res) -> if equal res tm then tm else res
   | (h :: t, res) ->
     match tm with
-      Var _ -> failwith "Term.replace: Var"
+      Tvar _ -> failwith "Term.replace: Var"
     | Fn (letc,tms) ->
       if h >= List.length tms then failwith "Term.replace: Fn"
       else
         let arg = List.nth tms h in
         let arg' = replace arg (t,res)
         in
-          if arg' == arg then tm
-          else Fn (letc, Mlist.updateNth (h,arg') tms)
+          if arg' == arg then tm else
+          Fn (letc, Mlist.updateNth (h,arg') tms)
 ;;
 
 let find pred =
@@ -2360,7 +2356,7 @@ let find pred =
           if pred tm then Some (List.rev path)
           else
             match tm with
-              Var _ -> search rest
+              Tvar _ -> search rest
             | Fn (_,a) ->
               let subtms = List.map (fun (i,t) -> (i :: path, t)) (Mlist.enumerate a)
               in search (subtms @ rest)
@@ -2375,15 +2371,15 @@ let find pred =
 let freeIn v tm =
   let rec free v = function
       [] -> false
-    | (Var w :: tms) -> Name.equal v w || free v tms
-    | (Fn (_,args) :: tms) -> free v (args @ tms);
+    | (Tvar w :: tms) -> Name.equal v w || free v tms
+    | (Fn (_,args) :: tms) -> free v (args @ tms)
   in free v [tm];;
 
 let freeVarsList =
   let rec free vs = function
       [] -> vs
-    | (Var v :: tms) -> free (Name.Set.add vs v) tms
-    | (Fn (_,args) :: tms) -> free vs (args @ tms);
+    | (Tvar v :: tms) -> free (Name.Set.add vs v) tms
+    | (Fn (_,args) :: tms) -> free vs (args @ tms)
   in free Name.Set.empty;;
 
 let freeVars tm = freeVarsList [tm];;
@@ -2392,9 +2388,9 @@ let freeVars tm = freeVarsList [tm];;
 (* Fresh variables.                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-let newVar () = Var (Name.newName ());;
+let newVar () = Tvar (Name.newName ());;
 
-let newVars n = List.map (fun x -> Var x) (Name.newNames n);;
+let newVars n = List.map (fun x -> Tvar x) (Name.newNames n);;
 
 let avoid av n = Name.Set.member n av;;
 let variantPrime av = Name.variantPrime (avoid av);;
@@ -2420,10 +2416,10 @@ let isFnHasType = can destFnHasType;;
 
 let isTypedVar tm =
     match tm with
-      Var _ -> true
+      Tvar _ -> true
     | Fn letc ->
       match Useful.total destFnHasType letc with
-        Some (Var _, _) -> true
+        Some (Tvar _, _) -> true
       | _ -> false;;
 
 let typedSymbols tm =
@@ -2431,7 +2427,7 @@ let typedSymbols tm =
       [] -> n
     | (tm :: tms) ->
       match tm with
-        Var _ -> sz (n + 1) tms
+        Tvar _ -> sz (n + 1) tms
       | Fn letc ->
         match Useful.total destFnHasType letc with
           Some (tm,_) -> sz n (tm :: tms)
@@ -2445,12 +2441,12 @@ let nonVarTypedSubterms tm =
       ([], acc) -> acc
     | ((path,tm) :: rest, acc) ->
       (match tm with
-        Var _ -> subtms (rest, acc)
+        Tvar _ -> subtms (rest, acc)
       | Fn letc ->
         (match Useful.total destFnHasType letc with
           Some (t,_) ->
           (match t with
-             Var _ -> subtms (rest, acc)
+             Tvar _ -> subtms (rest, acc)
            | Fn _ ->
              let acc = (List.rev path, tm) :: acc
              and rest = (0 :: path, t) :: rest
@@ -2486,7 +2482,7 @@ let isFnApp = can destFnApp;;
 
 let destApp tm =
     match tm with
-      Var _ -> failwith "Term.destApp"
+      Tvar _ -> failwith "Term.destApp"
     | Fn letc -> destFnApp letc;;
 
 let isApp = can destApp;;
@@ -2505,7 +2501,7 @@ let stripApp tm =
 (* ------------------------------------------------------------------------- *)
 
 let rec toString = function
-    Var v -> v
+    Tvar v -> v
   | Fn (n, []) -> n
   | Fn (n, l) -> n ^ "(" ^ String.concat ", " (List.map toString l) ^ ")";;
 
@@ -2620,15 +2616,15 @@ let normalize (Subst m as sub) =
 
 let subst sub =
   let rec tmSub = function
-        (Term.Var v as tm) ->
+        (Term.Tvar v as tm) ->
           (match peek sub v with
              Some tm' -> if tm == tm' then tm else tm'
            | None -> tm)
       | (Term.Fn (f,args) as tm) ->
           let args' = List.map tmSub args
           in
-            if args == args' then tm
-            else Term.Fn (f,args')
+            if args == args' then tm else
+            Term.Fn (f,args')
     in
       fun tm -> if null sub then tm else tmSub tm
     ;;
@@ -2683,9 +2679,9 @@ let union (Subst m1 as s1) (Subst m2 as s2) =
 
 let invert (Subst m) =
   let inv = function
-      (v, Term.Var w, s) ->
+      (v, Term.Tvar w, s) ->
       if Name.Map.inDomain w s then failwith "Substitute.invert: non-injective"
-      else Name.Map.insert s (w, Term.Var v)
+      else Name.Map.insert s (w, Term.Tvar v)
     | (_, Term.Fn _, _) -> failwith "Substitute.invert: non-variable"
   in Subst (Name.Map.foldl inv (Name.Map.newMap ()) m)
 ;;
@@ -2741,7 +2737,7 @@ let functions =
 let matchTerms sub tm1 tm2 =
   let rec matchList sub = function
       [] -> sub
-    | ((Term.Var v, tm) :: rest) ->
+    | ((Term.Tvar v, tm) :: rest) ->
         let sub =
             match peek sub v with
               None -> insert sub (v,tm)
@@ -2766,18 +2762,18 @@ let unify sub tm1 tm2 =
   let rec solve sub = function
       [] -> sub
     | ((tm1,tm2) :: rest) ->
-      if tm1 == tm2 then solve sub rest
-      else solve' sub (subst sub tm1, subst sub tm2, rest)
+      if tm1 == tm2 then solve sub rest else
+      solve' sub (subst sub tm1, subst sub tm2, rest)
 
   and solve' sub = function
-      ((Term.Var v), tm, rest) ->
+      ((Term.Tvar v), tm, rest) ->
       if Term.equalVar v tm then solve sub rest
       else if Term.freeIn v tm then failwith "Substitute.unify: occurs check"
       else
         (match peek sub v with
            None -> solve (compose sub (singleton (v,tm))) rest
          | Some tm' -> solve' sub (tm', tm, rest))
-    | (tm1, ((Term.Var _) as tm2), rest) -> solve' sub (tm2, tm1, rest)
+    | (tm1, ((Term.Tvar _) as tm2), rest) -> solve' sub (tm2, tm1, rest)
     | (Term.Fn (f1,args1), Term.Fn (f2,args2), rest) ->
       if Name.equal f1 f2 && length args1 = length args2 then
         solve sub (zip args1 args2 @ rest)
@@ -2860,13 +2856,11 @@ let equal atm1 atm2 = compare atm1 atm2 = 0;;
 (* Subterms.                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-let subterm =
-  let subterm' = function
-    (_, []) -> raise (Useful.Bug "Atom.subterm: empty path")
-  | ((_,tms), h :: t) ->
+let subterm (_, tms) = function
+    [] -> raise (Useful.Bug "Atom.subterm: empty path")
+  | (h :: t) ->
     if h >= length tms then failwith "Atom.subterm: bad path"
     else Term.subterm (List.nth tms h) t
-  in fun x y -> subterm' (x, y)
 
 let subterms ((_,tms) : atom) =
     let f ((n,tm),l) = List.map (fun (p,s) -> (n :: p, s)) (Term.subterms tm) @ l
@@ -2882,8 +2876,8 @@ let replace ((rel,tms) as atm) = function
       let tm = List.nth tms h
       in let tm' = Term.replace tm (t,res)
       in
-        if tm == tm' then atm
-        else (rel, Mlist.updateNth (h,tm') tms)
+        if tm == tm' then atm else
+        (rel, Mlist.updateNth (h,tm') tms)
       ;;
 
 let find pred =
@@ -3066,8 +3060,8 @@ module Formula = struct
 (* ------------------------------------------------------------------------- *)
 
 type formula =
-    True
-  | False
+    Ftrue
+  | Ffalse
   | Atom of Atom.atom
   | Not of formula
   | And of formula * formula
@@ -3084,24 +3078,24 @@ type formula =
 (* Booleans *)
 
 let mkBoolean = function
-    true -> True
-  | false -> False;;
+    true -> Ftrue
+  | false -> Ffalse;;
 
 let destBoolean =
-    function True -> true
-  | False -> false
+    function Ftrue -> true
+  | Ffalse -> false
   | _ -> failwith "destBoolean";;
 
 let isBoolean = can destBoolean;;
 
 let isTrue fm =
     match fm with
-      True -> true
+      Ftrue -> true
     | _ -> false;;
 
 let isFalse fm =
     match fm with
-      False -> true
+      Ffalse -> true
     | _ -> false;;
 
 (* Functions *)
@@ -3109,8 +3103,8 @@ let isFalse fm =
 let functions fm =
   let rec funcs fs = function
       [] -> fs
-    | (True :: fms) -> funcs fs fms
-    | (False :: fms) -> funcs fs fms
+    | (Ftrue :: fms) -> funcs fs fms
+    | (Ffalse :: fms) -> funcs fs fms
     | (Atom atm :: fms) -> funcs (Name_arity.Set.union (Atom.functions atm) fs) fms
     | (Not p :: fms) -> funcs fs (p :: fms)
     | (And (p,q) :: fms) -> funcs fs (p :: q :: fms)
@@ -3125,8 +3119,8 @@ let functions fm =
 let functionNames fm =
   let rec funcs fs = function
       [] -> fs
-    | (True :: fms) -> funcs fs fms
-    | (False :: fms) -> funcs fs fms
+    | (Ftrue :: fms) -> funcs fs fms
+    | (Ffalse :: fms) -> funcs fs fms
     | (Atom atm :: fms) -> funcs (Name.Set.union (Atom.functionNames atm) fs) fms
     | (Not p :: fms) -> funcs fs (p :: fms)
     | (And (p,q) :: fms) -> funcs fs (p :: q :: fms)
@@ -3142,8 +3136,8 @@ let functionNames fm =
 let relations fm =
   let rec rels fs = function
       [] -> fs
-    | (True :: fms) -> rels fs fms
-    | (False :: fms) -> rels fs fms
+    | (Ftrue :: fms) -> rels fs fms
+    | (Ffalse :: fms) -> rels fs fms
     | (Atom atm :: fms) ->
       rels (Name_arity.Set.add fs (Atom.relation atm)) fms
     | (Not p :: fms) -> rels fs (p :: fms)
@@ -3159,8 +3153,8 @@ let relations fm =
 let relationNames fm =
   let rec rels fs = function
       [] -> fs
-    | (True :: fms) -> rels fs fms
-    | (False :: fms) -> rels fs fms
+    | (Ftrue :: fms) -> rels fs fms
+    | (Ffalse :: fms) -> rels fs fms
     | (Atom atm :: fms) -> rels (Name.Set.add fs (Atom.name atm)) fms
     | (Not p :: fms) -> rels fs (p :: fms)
     | (And (p,q) :: fms) -> rels fs (p :: q :: fms)
@@ -3199,7 +3193,7 @@ let stripNeg =
 
 let listMkConj fms =
     match List.rev fms with
-      [] -> True
+      [] -> Ftrue
     | fm :: fms -> Mlist.foldl (fun (x, y) -> And (x, y)) fm fms;;
 
 let stripConj =
@@ -3207,14 +3201,14 @@ let stripConj =
       (And (p,q)) -> strip (p :: cs) q
     | fm -> List.rev (fm :: cs)
   in function
-      True -> []
+      Ftrue -> []
     | fm -> strip [] fm;;
 
 let flattenConj =
       let rec flat acc = function
           [] -> acc
         | (And (p,q) :: fms) -> flat acc (q :: p :: fms)
-        | (True :: fms) -> flat acc fms
+        | (Ftrue :: fms) -> flat acc fms
         | (fm :: fms) -> flat (fm :: acc) fms
     in
       fun fm -> flat [] [fm]
@@ -3224,7 +3218,7 @@ let flattenConj =
 
 let listMkDisj fms =
     match List.rev fms with
-      [] -> False
+      [] -> Ffalse
     | fm :: fms -> Mlist.foldl (fun (x,y) -> Or (x,y)) fm fms;;
 
 let stripDisj =
@@ -3232,14 +3226,14 @@ let stripDisj =
       (Or (p,q)) -> strip (p :: cs) q
     | fm -> List.rev (fm :: cs)
   in function
-      False -> []
+      Ffalse -> []
     | fm -> strip [] fm;;
 
 let flattenDisj =
       let rec flat acc = function
           [] -> acc
         | (Or (p,q) :: fms) -> flat acc (q :: p :: fms)
-        | (False :: fms) -> flat acc fms
+        | (Ffalse :: fms) -> flat acc fms
         | (fm :: fms) -> flat (fm :: acc) fms
     in
       fun fm -> flat [] [fm]
@@ -3249,7 +3243,7 @@ let flattenDisj =
 
 let listMkEquiv fms =
     match List.rev fms with
-      [] -> True
+      [] -> Ftrue
     | fm :: fms -> Mlist.foldl (fun (x,y) -> Iff (x,y)) fm fms;;
 
 let stripEquiv =
@@ -3257,14 +3251,14 @@ let stripEquiv =
       (Iff (p,q)) -> strip (p :: cs) q
     | fm -> List.rev (fm :: cs)
   in function
-      True -> []
+      Ftrue -> []
     | fm -> strip [] fm;;
 
 let flattenEquiv =
       let rec flat acc = function
           [] -> acc
         | (Iff (p,q) :: fms) -> flat acc (q :: p :: fms)
-        | (True :: fms) -> flat acc fms
+        | (Ftrue :: fms) -> flat acc fms
         | (fm :: fms) -> flat (fm :: acc) fms
     in
       fun fm -> flat [] [fm]
@@ -3319,8 +3313,8 @@ let stripExists =
 let symbols fm =
   let rec sz n = function
       [] -> n
-    | (True :: fms) -> sz (n + 1) fms
-    | (False :: fms) -> sz (n + 1) fms
+    | (Ftrue :: fms) -> sz (n + 1) fms
+    | (Ffalse :: fms) -> sz (n + 1) fms
     | (Atom atm :: fms) -> sz (n + Atom.symbols atm) fms
     | (Not p :: fms) -> sz (n + 1) (p :: fms)
     | (And (p,q) :: fms) -> sz (n + 1) (p :: q :: fms)
@@ -3340,15 +3334,14 @@ let compare fm1 fm2 =
   let rec cmp = function
       [] -> 0
     | (((f1, f2) as f1_f2) :: fs) ->
-      if f1 == f2 then cmp fs
-      else
+      if f1 == f2 then cmp fs else
         match f1_f2 with
-          (True,True) -> cmp fs
-        | (True,_) -> -1
-        | (_,True) -> 1
-        | (False,False) -> cmp fs
-        | (False,_) -> -1
-        | (_,False) -> 1
+          (Ftrue,Ftrue) -> cmp fs
+        | (Ftrue,_) -> -1
+        | (_,Ftrue) -> 1
+        | (Ffalse,Ffalse) -> cmp fs
+        | (Ffalse,_) -> -1
+        | (_,Ffalse) -> 1
         | (Atom atm1, Atom atm2) ->
             let c = Atom.compare atm1 atm2 in
             if c <> 0 then c else cmp fs
@@ -3389,8 +3382,8 @@ let equal fm1 fm2 = compare fm1 fm2 = 0;;
 let freeIn v =
       let rec f = function
           [] -> false
-        | (True :: fms) -> f fms
-        | (False :: fms) -> f fms
+        | (Ftrue :: fms) -> f fms
+        | (Ffalse :: fms) -> f fms
         | (Atom atm :: fms) -> Atom.freeIn v atm || f fms
         | (Not p :: fms) -> f (p :: fms)
         | (And (p,q) :: fms) -> f (p :: q :: fms)
@@ -3408,8 +3401,8 @@ let freeIn v =
 let add (fm,vs) =
   let rec fv vs = function
       [] -> vs
-    | ((_,True) :: fms) -> fv vs fms
-    | ((_,False) :: fms) -> fv vs fms
+    | ((_,Ftrue) :: fms) -> fv vs fms
+    | ((_,Ffalse) :: fms) -> fv vs fms
     | ((bv, Atom atm) :: fms) ->
       fv (Name.Set.union vs (Name.Set.difference (Atom.freeVars atm) bv)) fms
     | ((bv, Not p) :: fms) -> fv vs ((bv,p) :: fms)
@@ -3437,8 +3430,8 @@ let generalize fm = listMkForall (Name.Set.toList (freeVars fm), fm);;
   let rec substCheck sub fm = if Substitute.null sub then fm else substFm sub fm
 
   and substFm sub fm = match fm with
-        True -> fm
-      | False -> fm
+        Ftrue -> fm
+      | Ffalse -> fm
       | Atom (p,tms) ->
           let tms' = List.map (Substitute.subst sub) tms
         in
@@ -3458,9 +3451,8 @@ let generalize fm = listMkForall (Name.Set.toList (freeVars fm), fm);;
         let p' = substFm sub p
         and q' = substFm sub q
       in
-        if p == p' && q == q'
-        then fm
-        else conn (p',q')
+        if p == p' && q == q' then fm else
+        conn (p',q')
 
   and substQuant sub fm quant v p =
         let v' =
@@ -3478,12 +3470,12 @@ let generalize fm = listMkForall (Name.Set.toList (freeVars fm), fm);;
 
         in let sub =
             if Name.equal v v' then Substitute.remove sub (Name.Set.singleton v)
-            else Substitute.insert sub (v, Term.Var v')
+            else Substitute.insert sub (v, Term.Tvar v')
 
         in let p' = substCheck sub p
       in
-        if Name.equal v v' && p == p' then fm
-        else quant (v',p');;
+        if Name.equal v v' && p == p' then fm else
+        quant (v',p');;
 
   let subst = substCheck;;
 
@@ -3531,8 +3523,8 @@ and universalName = Name.fromString "!"
 and existentialName = Name.fromString "?";;
 
   let rec demote = function
-      True -> Term.Fn (truthName,[])
-    | False -> Term.Fn (falsityName,[])
+      Ftrue -> Term.Fn (truthName,[])
+    | Ffalse -> Term.Fn (falsityName,[])
     | (Atom (p,tms)) -> Term.Fn (p,tms)
     | (Not p) ->
       let
@@ -3543,9 +3535,9 @@ and existentialName = Name.fromString "?";;
     | (Or (p,q)) -> Term.Fn (disjunctionName, [demote p; demote q])
     | (Imp (p,q)) -> Term.Fn (implicationName, [demote p; demote q])
     | (Iff (p,q)) -> Term.Fn (equivalenceName, [demote p; demote q])
-    | (Forall (v,b)) -> Term.Fn (universalName, [Term.Var v; demote b])
+    | (Forall (v,b)) -> Term.Fn (universalName, [Term.Tvar v; demote b])
     | (Exists (v,b)) ->
-      Term.Fn (existentialName, [Term.Var v; demote b]);;
+      Term.Fn (existentialName, [Term.Tvar v; demote b]);;
 
   let toString fm = Term.toString (demote fm);;
 
@@ -3562,7 +3554,7 @@ and existentialName = Name.fromString "?";;
   let rec split asms pol fm =
       match (pol,fm) with
         (* Positive splittables *)
-        (true,True) -> []
+        (true,Ftrue) -> []
       | (true, Not f) -> split asms false f
       | (true, And (f1,f2)) -> split asms true f1 @ split (f1 :: asms) true f2
       | (true, Or (f1,f2)) -> split (Not f1 :: asms) true f2
@@ -3571,7 +3563,7 @@ and existentialName = Name.fromString "?";;
         split (f1 :: asms) true f2 @ split (f2 :: asms) true f1
       | (true, Forall (v,f)) -> List.map (add_var_asms asms v) (split [] true f)
         (* Negative splittables *)
-      | (false,False) -> []
+      | (false,Ffalse) -> []
       | (false, Not f) -> split asms true f
       | (false, And (f1,f2)) -> split (f1 :: asms) false f2
       | (false, Or (f1,f2)) ->
@@ -3988,37 +3980,6 @@ module Set_map = struct
   let exists = Pmap.exists
 end
 
-module Set_set = struct
-  type set = Set.set Pset.set
-  let empty = Pset.empty Set.compare
-  let singleton x = Pset.singleton Set.compare x
-  let fromList l = Pset.fromList Set.compare l
-  let compare = Pset.compare
-  let add = Pset.add
-  let foldr = Pset.foldr
-  let foldl = Pset.foldl
-  let member x s = Pset.member x s
-  let union = Pset.union
-  let difference = Pset.difference
-  let toList = Pset.toList
-  let null = Pset.null
-  let size = Pset.size
-  let pick = Pset.pick
-  let equal = Pset.equal
-  let exists p s = Pset.exists p s
-  let delete = Pset.delete
-  let subset = Pset.subset
-  let intersect = Pset.intersect
-  let intersectList = function
-      [] -> empty
-    | (s::ss) -> List.fold_right Pset.intersect ss s
-  let findl = Pset.findl
-  let firstl = Pset.firstl
-  let transform = Pset.transform
-  let all p s = Pset.all p s
-  let count p s = Pset.count p s
-end
-
 end
 
 
@@ -4175,8 +4136,7 @@ let assume lit =
 let subst sub (Thm (cl,inf) as th) =
       let cl' = Literal.Set.subst sub cl
     in
-      if cl == cl' then th
-      else
+      if cl == cl' then th else
         match inf with
           (Subst,_) -> Thm (cl',inf)
         | _ -> Thm (cl',(Subst,[th]))
@@ -4547,19 +4507,19 @@ module Rule = struct
 (* ------------------------------------------------------------------------- *)
 
 let xVarName = Name.fromString "x";;
-let xVar = Term.Var xVarName;;
+let xVar = Term.Tvar xVarName;;
 
 let yVarName = Name.fromString "y";;
-let yVar = Term.Var yVarName;;
+let yVar = Term.Tvar yVarName;;
 
 let zVarName = Name.fromString "z";;
-let zVar = Term.Var zVarName;;
+let zVar = Term.Tvar zVarName;;
 
 let xIVarName i = Name.fromString ("x" ^ string_of_int i);;
-let xIVar i = Term.Var (xIVarName i);;
+let xIVar i = Term.Tvar (xIVarName i);;
 
 let yIVarName i = Name.fromString ("y" ^ string_of_int i);;
-let yIVar i = Term.Var (yIVarName i);;
+let yIVar i = Term.Tvar (yIVarName i);;
 
 (* ------------------------------------------------------------------------- *)
 (*                                                                           *)
@@ -4773,7 +4733,7 @@ let pathConv conv path tm =
 let subtermConv conv i = pathConv conv [i];;
 
 let subtermsConv conv = function
-    (Term.Var _ as tm) -> allConv tm
+    (Term.Tvar _ as tm) -> allConv tm
   | (Term.Fn (_,a) as tm) ->
     everyConv (List.map (subtermConv conv) (Useful.interval 0 (length a))) tm;;
 
@@ -4822,9 +4782,9 @@ let thenLiterule literule1 literule2 lit =
       else if Literal.equal lit lit'' then allLiterule lit
       else
         (lit'',
-         if not (Thm.member lit' th1) then th1
-         else if not (Thm.negateMember lit' th2) then th2
-         else Thm.resolve lit' th1 th2)
+         (if not (Thm.member lit' th1) then th1
+          else if not (Thm.negateMember lit' th2) then th2
+          else Thm.resolve lit' th1 th2))
     ;;
 
 let orelseLiterule (literule1 : literule) literule2 lit =
@@ -5062,7 +5022,7 @@ let removeSym th =
         None -> (eqs, th)
       | Some atm' ->
         if Literal.Set.member lit eqs then
-          (eqs, if pol then symEq lit th else symNeq lit th)
+          (eqs, (if pol then symEq lit th else symNeq lit th))
         else
           (Literal.Set.add eqs (pol,atm'), th)
 in
@@ -6172,11 +6132,11 @@ let default = Parameters {sizep = defaultSize; fixed = defaultFixed};;
 
 let destTerm tm =
     match tm with
-      Term.Var _ -> tm
+      Term.Tvar _ -> tm
     | Term.Fn f_tms ->
       match Term.stripApp tm with
         (_,[]) -> tm
-      | (Term.Var _ as v, tms) -> Term.Fn (Term.appName, v :: tms)
+      | (Term.Tvar _ as v, tms) -> Term.Fn (Term.appName, v :: tms)
       | (Term.Fn (f,tms), tms') -> Term.Fn (f, tms @ tms');;
 
 (* ------------------------------------------------------------------------- *)
@@ -6204,7 +6164,7 @@ let interpretRelation vM n_elts =
 let interpretTerm vM vV =
       let rec interpret tm =
           match destTerm tm with
-            Term.Var v -> getValuation vV v
+            Term.Tvar v -> getValuation vV v
           | Term.Fn (f,tms) -> interpretFunction vM (f, List.map interpret tms)
     in
       interpret
@@ -6218,8 +6178,8 @@ let interpretFormula vM =
 
       in let rec interpret vV fm =
           match fm with
-            Formula.True -> true
-          | Formula.False -> false
+            Formula.Ftrue -> true
+          | Formula.Ffalse -> false
           | Formula.Atom atm -> interpretAtom vM vV atm
           | Formula.Not p -> not (interpret vV p)
           | Formula.Or (p,q) -> interpret vV p || interpret vV q
@@ -6318,7 +6278,7 @@ type modelTerm =
 let modelTerm vM vV =
       let rec modelTm tm =
           match destTerm tm with
-            Term.Var v -> (Model_var, getValuation vV v)
+            Term.Tvar v -> (Model_var, getValuation vV v)
           | Term.Fn (f,tms) ->
               let (tms,xs) = unzip (List.map modelTm tms)
             in
@@ -6435,25 +6395,24 @@ module Term_net = struct
 (* ------------------------------------------------------------------------- *)
 
 let anonymousName = Name.fromString "_";;
-let anonymousVar = Term.Var anonymousName;;
+let anonymousVar = Term.Tvar anonymousName;;
 
 (* ------------------------------------------------------------------------- *)
 (* Quotient terms.                                                           *)
 (* ------------------------------------------------------------------------- *)
 
 type qterm =
-    Var
+    Qvar
   | Fn of Name_arity.nameArity * qterm list;;
 
   let rec cmp = function
       [] -> 0
     | (((q1, q2) as q1_q2) :: qs) ->
-      if q1 == q2 then cmp qs
-      else
+      if q1 == q2 then cmp qs else
         match q1_q2 with
-          (Var,Var) -> 0
-        | (Var, Fn _) -> -1
-        | (Fn _, Var) -> 1
+          (Qvar,Qvar) -> 0
+        | (Qvar, Fn _) -> -1
+        | (Fn _, Qvar) -> 1
         | (Fn (f1, f1'), Fn (f2, f2')) -> fnCmp (f1,f1') (f2,f2') qs
 
   and fnCmp (n1,q1) (n2,q2) qs =
@@ -6470,13 +6429,13 @@ let equalQterm q1 q2 = compareQterm q1 q2 = 0;;
 let equalFnQterm f1 f2 = compareFnQterm f1 f2 = 0;;
 
 let rec termToQterm = function
-    (Term.Var _) -> Var
+    (Term.Tvar _) -> Qvar
   | (Term.Fn (f,l)) -> Fn ((f, length l), List.map termToQterm l);;
 
   let rec qm = function
       [] -> true
-    | ((Var,_) :: rest) -> qm rest
-    | ((Fn _, Var) :: _) -> false
+    | ((Qvar,_) :: rest) -> qm rest
+    | ((Fn _, Qvar) :: _) -> false
     | ((Fn (f,a), Fn (g,b)) :: rest) ->
       Name_arity.equal f g && qm (zip a b @ rest);;
 
@@ -6484,8 +6443,8 @@ let rec termToQterm = function
 
   let rec qm = function
       [] -> true
-    | ((Var,_) :: rest) -> qm rest
-    | ((Fn _, Term.Var _) :: _) -> false
+    | ((Qvar,_) :: rest) -> qm rest
+    | ((Fn _, Term.Tvar _) :: _) -> false
     | ((Fn ((f,n),a), Term.Fn (g,b)) :: rest) ->
       Name.equal f g && n = length b && qm (zip a b @ rest);;
 
@@ -6493,11 +6452,11 @@ let rec termToQterm = function
 
   let rec qn qsub = function
       [] -> Some qsub
-    | ((Term.Var v, qtm) :: rest) ->
+    | ((Term.Tvar v, qtm) :: rest) ->
       (match Name.Map.peek qsub v with
          None -> qn (Name.Map.insert qsub (v,qtm)) rest
        | Some qtm' -> if equalQterm qtm qtm' then qn qsub rest else None)
-    | ((Term.Fn _, Var) :: _) -> None
+    | ((Term.Fn _, Qvar) :: _) -> None
     | ((Term.Fn (f,a), Fn ((g,n),b)) :: rest) ->
       if Name.equal f g && length a = n then qn qsub (zip a b @ rest)
       else None;;
@@ -6505,8 +6464,8 @@ let rec termToQterm = function
   let matchTermQterm qsub tm qtm = qn qsub [(tm,qtm)];;
 
   let rec qv s t = match (s,t) with
-      (Var, x) -> x
-    | (x, Var) -> x
+      (Qvar, x) -> x
+    | (x, Qvar) -> x
     | (Fn (f,a), Fn (g,b)) ->
         let _ = Name_arity.equal f g || failwith "Term_net.qv"
       in
@@ -6515,8 +6474,8 @@ let rec termToQterm = function
 
   let rec qu qsub = function
       [] -> qsub
-    | ((Var, _) :: rest) -> qu qsub rest
-    | ((qtm, Term.Var v) :: rest) ->
+    | ((Qvar, _) :: rest) -> qu qsub rest
+    | ((qtm, Term.Tvar v) :: rest) ->
         let qtm =
             match Name.Map.peek qsub v with None -> qtm | Some qtm' -> qv qtm qtm'
       in
@@ -6530,7 +6489,7 @@ let rec termToQterm = function
   let unifyQtermTerm qsub qtm tm = Useful.total (qu qsub) [(qtm,tm)];;
 
   let rec qtermToTerm = function
-      Var -> anonymousVar
+      Qvar -> anonymousVar
     | (Fn ((f,_),l)) -> Term.Fn (f, List.map qtermToTerm l);;
 
 
@@ -6584,7 +6543,7 @@ let singles qtms a = Mlist.foldr (fun (x, y) -> Single (x, y)) a qtms;;
     | (a, (qtm :: qtms as input1), Single (qtm',n)) ->
       if equalQterm qtm qtm' then Single (qtm, add a qtms n)
       else add a input1 (add n [qtm'] (Multiple (None, Name_arity.Map.newMap ())))
-    | (a, Var :: qtms, Multiple (vs,fs)) ->
+    | (a, Qvar :: qtms, Multiple (vs,fs)) ->
       Multiple (Some (oadd a qtms vs), fs)
     | (a, Fn (f,l) :: qtms, Multiple (vs,fs)) ->
         let n = Name_arity.Map.peek fs f
@@ -6671,7 +6630,7 @@ let toString net = "Term_net[" ^ string_of_int (size net) ^ "]";;
         in let rest =
             match v with
               None -> rest
-            | Some net -> (n, stackAddQterm Var stack, net) :: rest
+            | Some net -> (n, stackAddQterm Qvar stack, net) :: rest
 
         in let getFns ((_,k) as f, net, x) =
             (k + n, stackAddFn f stack, net) :: x
@@ -6687,7 +6646,7 @@ let foldEqualTerms pat inc acc =
           ([],net) -> inc (pat,net,acc)
         | (pat :: pats, Single (qtm,net)) ->
           if equalQterm pat qtm then fold (pats,net) else acc
-        | (Var :: pats, Multiple (v,_)) ->
+        | (Qvar :: pats, Multiple (v,_)) ->
           (match v with None -> acc | Some net -> fold (pats,net))
         | (Fn (f,a) :: pats, Multiple (_,fns)) ->
           (match Name_arity.Map.peek fns f with
@@ -6703,7 +6662,7 @@ let foldEqualTerms pat inc acc =
       [] -> acc
     | (([],stack,net) :: rest) ->
       fold inc (inc (stackValue stack, net, acc)) rest
-    | ((Var :: pats, stack, net) :: rest) ->
+    | ((Qvar :: pats, stack, net) :: rest) ->
         let harvest (qtm,n,l) = (pats, stackAddQterm qtm stack, n) :: l
       in
         fold inc acc (foldTerms harvest rest net)
@@ -6738,7 +6697,8 @@ let foldEqualTerms pat inc acc =
 
   let idwise (m,_) (n,_) = Useful.intCompare m n;;
 
-  let fifoize (Parameters {fifo} : parameters) l = if fifo then List.sort idwise l else l;;
+  let fifoize (Parameters {fifo}) l =
+    if fifo then List.sort idwise l else l;;
 
   let finally parm l = List.map snd (fifoize parm l);;
 
@@ -6753,7 +6713,7 @@ let foldEqualTerms pat inc acc =
 
         in let rest =
             match tm with
-              Term.Var _ -> rest
+              Term.Tvar _ -> rest
             | Term.Fn (f,l) ->
               match Name_arity.Map.peek fs (f, length l) with
                 None -> rest
@@ -6781,7 +6741,7 @@ let foldEqualTerms pat inc acc =
       (match matchTermQterm qsub tm qtm with
          None -> mat acc rest
        | Some qsub -> mat acc ((qsub,net,tms) :: rest))
-    | ((qsub, (Multiple _ as net), Term.Var v :: tms) :: rest) ->
+    | ((qsub, (Multiple _ as net), Term.Tvar v :: tms) :: rest) ->
       (match Name.Map.peek qsub v with
          None -> mat acc (foldTerms (unseenInc qsub v tms) rest net)
        | Some qtm -> mat acc (foldEqualTerms qtm (seenInc qsub tms) rest net))
@@ -6811,7 +6771,7 @@ let foldEqualTerms pat inc acc =
       (match unifyQtermTerm qsub qtm tm with
          None -> mat acc rest
        | Some qsub -> mat acc ((qsub,net,tms) :: rest))
-    | ((qsub, (Multiple _ as net), Term.Var v :: tms) :: rest) ->
+    | ((qsub, (Multiple _ as net), Term.Tvar v :: tms) :: rest) ->
       (match Name.Map.peek qsub v with
          None -> mat acc (foldTerms (inc qsub v tms) rest net)
        | Some qtm -> mat acc (foldUnifiableTerms qtm (inc qsub v tms) rest net))
@@ -6848,7 +6808,7 @@ module Atom_net = struct
 let atomToTerm atom = Term.Fn atom;;
 
 let termToAtom = function
-    (Term.Var _) -> raise (Useful.Bug "Atom_net.termToAtom")
+    (Term.Tvar _) -> raise (Useful.Bug "Atom_net.termToAtom")
   | (Term.Fn atom) -> atom;;
 
 (* ------------------------------------------------------------------------- *)
@@ -6915,9 +6875,9 @@ type 'a literalNet = Literal_net of
 
 let newNet parm = Literal_net {positive = Atom_net.newNet parm; negative = Atom_net.newNet parm};;
 
-  let pos (Literal_net {positive} : 'a literalNet) = Atom_net.size positive;;
+  let pos (Literal_net {positive}) = Atom_net.size positive;;
 
-  let neg (Literal_net {negative} : 'a literalNet) = Atom_net.size negative;;
+  let neg (Literal_net {negative}) = Atom_net.size negative;;
 
   let size net = pos net + neg net;;
 
@@ -6946,17 +6906,17 @@ let toString net = "Literal_net[" ^ string_of_int (size net) ^ "]";;
 (* Filter afterwards to get the precise set of satisfying values.            *)
 (* ------------------------------------------------------------------------- *)
 
-let matchNet (Literal_net {positive;negative} : 'a literalNet) = function
+let matchNet (Literal_net {positive;negative}) = function
     (true,atm) ->
     Atom_net.matchNet positive atm
   | (false,atm) -> Atom_net.matchNet negative atm;;
 
-let matched (Literal_net {positive;negative} : 'a literalNet) = function
+let matched (Literal_net {positive;negative}) = function
     (true,atm) ->
     Atom_net.matched positive atm
   | (false,atm) -> Atom_net.matched negative atm;;
 
-let unify (Literal_net {positive;negative} : 'a literalNet) = function
+let unify (Literal_net {positive;negative}) = function
     (true,atm) ->
     Atom_net.unify positive atm
   | (false,atm) -> Atom_net.unify negative atm;;
@@ -7082,14 +7042,13 @@ let insert (Subsume {empty;unitn;nonunit}) (cl',a) =
       ;;
 
 let filter pred (Subsume {empty;unitn;nonunit}) =
-      let pred3 (_,_,x) = pred x
-      in let empty = List.filter pred3 empty
+      let empty = List.filter (fun (_,_,x) -> pred x) empty
 
-      in let unitn = Literal_net.filter pred3 unitn
+      in let unitn = Literal_net.filter (fun (_,_,x) -> pred x) unitn
 
       in let nonunit =
             let Nonunit {nextId;clauses;fstLits;sndLits} = nonunit
-            in let clauses' = Intmap.filter (fun x -> pred3 (snd x)) clauses
+            in let clauses' = Intmap.filter (fun x -> (fun (_,_,x) -> pred x) (snd x)) clauses
           in
             if Intmap.size clauses = Intmap.size clauses' then nonunit
             else
@@ -7335,7 +7294,7 @@ let weightSubtract w1 w2 = weightAdd w1 (weightNeg w2);;
 let weightTerm weight =
       let rec wt m c = function
           [] -> Weight (m,c)
-        | (Term.Var v :: tms) ->
+        | (Term.Tvar v :: tms) ->
             let n = Option.value (Name.Map.peek m v) 0
           in
             wt (Name.Map.insert m (v, n + 1)) (c + 1) tms
@@ -7496,7 +7455,8 @@ let updateWaiting rw waiting =
          subterms = subterms; waiting = waiting}
     ;;
 
-let deleteWaiting (Rewrite {waiting} as rw) id =
+let deleteWaiting rw id =
+  let Rewrite {waiting} = rw in
     updateWaiting rw (Intset.delete waiting id);;
 
 (* ------------------------------------------------------------------------- *)
@@ -7592,7 +7552,7 @@ let termReducible order known id =
 
       in let rec termRed tm = Intmap.exists (knownRed tm) known || subtermRed tm
       and subtermRed = function
-          (Term.Var _) -> false
+          (Term.Tvar _) -> false
         | (Term.Fn (_,tms)) -> List.exists termRed tms
     in
       termRed
@@ -7626,7 +7586,8 @@ let orderToOrient = function
       | None -> ins (ins redexes l id Left_to_right) r id Right_to_left;;
 
 
-let add (Rewrite {known} as rw) (id,eqn) =
+let add rw (id,eqn) =
+  let Rewrite {known} = rw in
     if Intmap.inDomain id known then rw
     else
         let Rewrite {order;redexes;subterms;waiting} = rw
@@ -7768,9 +7729,9 @@ let rewriteIdEqn' order known redexes id ((l_r,th) as eqn) =
       if Literal.equal lit lit' then eqn
       else
         (Literal.destEq lit',
-         if strongEqn then th
-         else if not (Thm.negateMember lit litTh) then litTh
-         else Thm.resolve lit th litTh);;
+         (if strongEqn then th
+          else if not (Thm.negateMember lit litTh) then litTh
+          else Thm.resolve lit th litTh));;
 (*MetisDebug
     handle Failure err -> failwith ("Rewrite.rewriteIdEqn':\n" ^ err);;
 *)
@@ -8014,7 +7975,8 @@ let pick known set =
            waiting = waiting}
       ;;
 
-let rec reduceAcc (rpl, spl, todo, (Rewrite {known=known;waiting=waiting} as rw), changed) =
+let rec reduceAcc (rpl, spl, todo, rw, changed) =
+  let Rewrite {known;waiting} = rw in
     match pick known todo with
       Some (id,eqn_ort) ->
         let todo = Intset.delete todo id
@@ -8250,7 +8212,7 @@ let strictlyLess ordering x y =
       Some c when c < 0 -> true
     | _ -> false;;
 
-let isLargerTerm (Parameters {ordering;orderTerms} : parameters) (l,r) =
+let isLargerTerm (Parameters {ordering;orderTerms}) (l,r) =
     not orderTerms || not (strictlyLess ordering l r);;
 
   let atomToTerms atm =
@@ -8264,7 +8226,7 @@ let isLargerTerm (Parameters {ordering;orderTerms} : parameters) (l,r) =
         not (List.for_all less xs)
       ;;
 
-  let isLargerLiteral (Parameters {ordering;orderLiterals} : parameters) lits =
+  let isLargerLiteral (Parameters {ordering;orderLiterals}) lits =
       match orderLiterals with
         No_literal_order -> K true
       | Unsigned_literal_order ->
@@ -8308,7 +8270,8 @@ let largestLiterals = fun cl ->
     end;;
 *)
 
-let largestEquations (Clause {parameters} as cl) =
+let largestEquations cl =
+      let Clause {parameters} = cl in
       let addEq lit ort ((l,_) as l_r) acc =
           if isLargerTerm parameters l_r then (lit,ort,l) :: acc else acc
 
@@ -8389,7 +8352,8 @@ let rewrite rewr (Clause {parameters;id;thm}) =
 (* Inference rules: these generate new clause ids.                           *)
 (* ------------------------------------------------------------------------- *)
 
-let factor (Clause {parameters;thm} as cl) =
+let factor cl =
+      let Clause {parameters;thm} = cl in
       let lits = largestLiterals cl
 
       in let apply sub = newClause parameters (Thm.subst sub thm)
@@ -9192,10 +9156,10 @@ let deduce active cl =
           in let cP1_4 (x,_,_,_) = clausePred x
           in let clauses = Intmap.filter (fun x -> idPred (fst x)) clauses
           and subsume = Subsume.filter clausePred subsume
-          and literals = Literal_net.filter cP1 literals
-          and equations = Term_net.filter cP1_4 equations
-          and subterms = Term_net.filter cP1_4 subterms
-          and allSubterms = Term_net.filter cP1 allSubterms
+          and literals = Literal_net.filter (fun (x,_) -> clausePred x) literals
+          and equations = Term_net.filter (fun (x,_,_,_) -> clausePred x) equations
+          and subterms = Term_net.filter (fun (x,_,_,_) -> clausePred x) subterms
+          and allSubterms = Term_net.filter (fun (x,_) -> clausePred x) allSubterms
         in
           Active
             {parameters = parameters;
@@ -9209,7 +9173,8 @@ let deduce active cl =
              allSubterms = allSubterms}
         ;;
 
-  let extract_rewritables (Active {clauses;rewrite} as active) =
+  let extract_rewritables active =
+    let Active {clauses;rewrite} = active in
       if Rewrite.isReduced rewrite then (active,[])
       else
 (*MetisTrace3
@@ -9406,12 +9371,12 @@ let defaultModels : modelParameters list =
       initialPerturbations = 100;
       maxChecks = Some 20;
       perturbations = 0;
-      weight = 1.0}];;
+      weight = Float.one}];;
 
 let default : parameters =
-     Parameters {symbolsWeight = 1.0;
-      literalsWeight = 1.0;
-      variablesWeight = 1.0;
+     Parameters {symbolsWeight = Float.one;
+      literalsWeight = Float.one;
+      variablesWeight = Float.one;
       modelsP = defaultModels};;
 
 let size (Waiting {clauses}) = Heap.size clauses;;
@@ -9476,9 +9441,9 @@ let checkModels parms models (fv,cl) =
             in let n = maxChecks
             in let (vT,vF) = Model.check Model.interpretClause n model fv cl
           in
-            (1.0 +. float_of_int vT /. float_of_int (vT + vF) ** weight) *. z
+            (Float.one +. float_of_int vT /. float_of_int (vT + vF) ** weight) *. z
     in
-      Mlist.foldl check 1.0 (zip parms models)
+      Mlist.foldl check Float.one (zip parms models)
     ;;
 
 let perturbModels parms models cls =
@@ -9501,7 +9466,7 @@ let perturbModels parms models cls =
 
   let clauseLiterals cl = float_of_int (Literal.Set.size cl);;
 
-  let clausePriority cl = 1e-12 *. float_of_int (Clause.id cl);;
+  let clausePriority cl = Float.of_string "1e-12" *. float_of_int (Clause.id cl);;
 
   let clauseWeight (parm : parameters) mods dist mcl cl =
 (*MetisTrace3
@@ -9599,7 +9564,7 @@ let add waiting (dist,cls) =
         in let waiting = empty parameters mAxioms mConjecture
       in
         if Mlist.null axioms_cl && Mlist.null conjecture_cl then waiting
-        else add' waiting 0.0 (mAxioms @ mConjecture) (axioms_cl @ conjecture_cl)
+        else add' waiting Float.zero (mAxioms @ mConjecture) (axioms_cl @ conjecture_cl)
 (*MetisDebug
       handle e ->
         let
@@ -9799,6 +9764,7 @@ let mk_disjp (ps, pt) = Combp (Combp (preterm_of_term `\/`, ps), pt)
 
 let list_mk_combp (h, t) = rev_itlist (fun x acc -> Combp (acc, x)) t h
 
+(*
 assert
   (
     list_mk_combp (Varp ("1", dpty), [Varp ("2", dpty); Varp ("3", dpty)])
@@ -9806,6 +9772,7 @@ assert
     Combp (Combp (Varp ("1", Ptycon ("", [])), Varp ("2", Ptycon ("", []))),
       Varp ("3", Ptycon ("", [])))
   );;
+*)
 
 let list_mk_disjp = function
     [] -> preterm_of_term `F`
@@ -9845,7 +9812,7 @@ let preterm_of_const = preterm_of_term o hol_of_const o int_of_string
 let prefix s = "__" ^ s
 
 let rec preterm_of_fol_term = function
-    Metis_prover.Term.Var x -> Varp (prefix x, dpty)
+    Metis_prover.Term.Tvar x -> Varp (prefix x, dpty)
   | Metis_prover.Term.Fn (f, args) ->
       let pf = preterm_of_const f in
       let pargs = List.map preterm_of_fol_term args in
@@ -9905,7 +9872,7 @@ let rec hol_of_term_path tm path = match tm, path with
     (tm, []) -> tm, ""
   | Metis_prover.Term.Fn (f, args), i :: is ->
       let arity = length args in
-      assert (i < arity);
+      (* assert (i < arity); *)
       let (tm', path') = hol_of_term_path (List.nth args i) is in
       (tm', String.make (arity - i - 1) 'l' ^ "r" ^ path')
   | _ -> failwith "hol_of_term_path"
@@ -9914,7 +9881,7 @@ let hol_of_atom_path (p, args) = hol_of_term_path (Metis_prover.Term.Fn (p, args
 
 let hol_of_literal_path (pol, atom) path =
   let s, path = hol_of_atom_path atom path in
-  s, if pol then path else "r" ^ path
+  (s, (if pol then path else "r" ^ path))
 
 end
 
@@ -9926,25 +9893,29 @@ let verb = ref false
 exception Unify
 
 let rec unify_fo_ho_term vars fat tm m =
+(*
   if !verb then Format.printf "unify_fo_ho_term: fat = %s, tm = %s\n%!"
     (Metis_prover.Term.toString fat) (string_of_term tm);
+*)
   match fat with
-    Metis_prover.Term.Var v when List.mem_assoc v m ->
-      if !verb then Format.printf "var_assoc\n%!";
+    Metis_prover.Term.Tvar v when List.mem_assoc v m ->
+      (* if !verb then Format.printf "var_assoc\n%!"; *)
       let tm' = List.assoc v m in
       if tm = tm' then m else raise Unify
-  | Metis_prover.Term.Var v ->
-      if !verb then Format.printf "var\n%!";
+  | Metis_prover.Term.Tvar v ->
+      (* if !verb then Format.printf "var\n%!"; *)
       if is_var tm && not (List.mem tm vars) then (v, tm) :: m
-      else (if !verb then Format.printf "Unify!\n%!"; raise Unify)
+      else ((* if !verb then Format.printf "Unify!\n%!"; *) raise Unify)
   | Metis_prover.Term.Fn (f, args) ->
-      if !verb then Format.printf "fn\n%!";
+      (* if !verb then Format.printf "fn\n%!"; *)
       let hf, hargs = try strip_comb tm with Failure _ -> raise Unify in
+(*
       if !verb then begin
         Format.printf "hf = %s\n%!" (string_of_term hf);
         Format.printf "is_var: %s\n%!" (if is_var hf then "true" else "false")
       end;
       assert (is_const hf || is_var hf);
+*)
       if hf = Metis_mapping.hol_of_const (int_of_string f)
       then itlist2 (unify_fo_ho_term vars) args hargs m
       else raise Unify
@@ -10026,11 +9997,13 @@ module Metis_reconstruct2 = struct
 let term_eq_mod_type t1 t2 tyinsts =
   try
     let _,tminsts,tyinsts = term_type_unify t1 t2 ([], [], tyinsts) in
+(*
     if !metisverb then
     begin
       Format.printf "unified with |tminsts| = %d!\n%!" (List.length tminsts);
       List.iter (fun t1, t2 -> Format.printf "%s <- %s\n%!" (string_of_term t1) (string_of_term t2)) tminsts
     end;
+*)
     if tminsts = [] then Some tyinsts else None
   with Failure _ -> None
 
@@ -10038,7 +10011,7 @@ let rec match_elems f m = function
     ([], []) -> [m]
   | ([],  _) -> []
   | (x :: xs, ys) -> List.map (fun y -> match f x y m with
-        Some m' -> match_elems f m' (xs, List.filter ((!=) y) ys)
+        Some m' -> match_elems f m' (xs, List.filter ((<>) y) ys)
       | None -> []) ys |> List.concat
 
 let match_fo_ho_clause vars = match_elems
@@ -10061,7 +10034,7 @@ let reorient_tysubst vars sub =
   map (fun (ty, v) -> tysubst sub' ty, v) sub'
 
 let rec hol_of_thm axioms fth =
-  if !metisverb then Format.printf "hol_of_thm: %s\n%!" (Metis_prover.Thm.toString fth);
+  (* if !metisverb then Format.printf "hol_of_thm: %s\n%!" (Metis_prover.Thm.toString fth); *)
   let env = Preterm.env_of_ths axioms in
   let hth = match Metis_prover.Proof.thmToInference fth with
     Metis_prover.Proof.Axiom clause ->
@@ -10074,60 +10047,72 @@ let rec hol_of_thm axioms fth =
         let ms = match_fo_ho_clause tmvars (clausel, disjs) in
         (*if !metisverb then Format.printf "after matching\n%!";*)
         map (fun m -> m, ax) ms) axioms in
-      assert (List.length maxs > 0);
-      let tminst = List.map (fun v, tm -> mk_var (Metis_mapping.prefix v, type_of tm), tm) in
+      (* assert (List.length maxs > 0); *)
+      let tminst = List.map (fun (v, tm) -> mk_var (Metis_mapping.prefix v, type_of tm), tm) in
+(*
       if !metisverb then Format.printf "length maxs = %d\n%!" (List.length maxs);
       if !metisverb then List.iter (fun (m, ax) -> Format.printf "max: %s with m = %s\n%!" (string_of_thm ax) (string_of_tminst (tminst m))) maxs;
+*)
       let (m, ax) = List.hd maxs in
       INST (tminst m) ax
   (* Caution: the substitution can contain elements such as "x -> f(x)" *)
   | Metis_prover.Proof.Subst (fsub, fth1) ->
       let th1 = hol_of_thm axioms fth1 in
-      if !metisverb then Format.printf "subst with th1 = %s\n%!" (string_of_thm th1);
+      (* if !metisverb then Format.printf "subst with th1 = %s\n%!" (string_of_thm th1); *)
 
       let fsubl = Metis_prover.Substitute.toList fsub in
-      if !metisverb then Format.printf "before substitution lifting\n%!";
-      let hsub = map (fun (v, t) -> t, Metis_prover.Term.Var v) fsubl |>
+      (* if !metisverb then Format.printf "before substitution lifting\n%!"; *)
+      let hsub = map (fun (v, t) -> t, Metis_prover.Term.Tvar v) fsubl |>
         Metis_mapping.hol_of_substitution env in
-      if !metisverb then Format.printf "subst: %s\n%!" (string_of_tminst hsub);
+      (* if !metisverb then Format.printf "subst: %s\n%!" (string_of_tminst hsub); *)
       let tyinst = itlist (fun (t, v) m ->
         let v' = find (fun v' -> name_of v' = name_of v) (frees (concl th1)) in
         type_unify (type_of v) (type_of v') m) hsub [] in
       let tminst = map (fun (t, v) -> inst tyinst t, inst tyinst v) hsub in
 
+(*
       if !metisverb then
         Format.printf "before instantiate of th1 = %s with %s\n%!"
           (string_of_thm th1) (string_of_instantiation ([], tminst, tyinst));
 
+*)
       INSTANTIATE ([], tminst, tyinst) th1
   | Metis_prover.Proof.Resolve (atom, fth1, fth2) ->
       let th1 = hol_of_thm axioms fth1
       and th2 = hol_of_thm axioms fth2 in
       let env = Preterm.env_of_ths [th1; th2] @ env in
+(*
       if !metisverb then List.iter (fun (s, pty) -> Format.printf "%s <- %s\n%!" s (string_of_type (type_of_pretype pty))) env;
       if !metisverb then Format.printf "before resolving\n%!";
       if !metisverb then Format.printf "th1 = %s\n%!" (string_of_thm th1);
       if !metisverb then Format.printf "th2 = %s\n%!" (string_of_thm th2);
+*)
       let tm1 = striplist dest_disj (concl th1) |> List.filter (not o is_neg)
       and tm2 = striplist dest_disj (concl th2) |> List.filter is_neg |> List.map dest_neg in
+(*
       if !metisverb then List.iter (Format.printf "tm1: %s\n%!" o string_of_term) tm1;
       if !metisverb then List.iter (Format.printf "tm2: %s\n%!" o string_of_term) tm2;
+*)
       let hatom = Metis_mapping.hol_of_atom env atom in
+(*
       if !metisverb then Format.printf "hatom: %s\n%!" (string_of_term hatom);
+*)
       let cands = Utils.List.concat_map (fun x ->
         match term_eq_mod_type hatom x [] with
           None -> []
         | Some m -> Utils.List.filter_map (fun y -> term_eq_mod_type hatom y m) tm2) tm1 in
+(*
       if !metisverb then Format.printf "%d candidates available\n%!" (List.length cands);
       assert (List.length cands > 0);
       assert (let h = List.hd cands in List.for_all ((=) h) cands);
+*)
       let tyinsts = List.hd cands in
       let tyvars = map hyp axioms |> List.concat |>
         map type_vars_in_term |> List.concat in
-      if !metisverb then Format.printf "Reorienting type substitution ...\n%!";
+      (* if !metisverb then Format.printf "Reorienting type substitution ...\n%!"; *)
       let tyinsts = reorient_tysubst tyvars tyinsts in
 
-      if !metisverb then Format.printf "Resolving ...\n%!";
+      (* if !metisverb then Format.printf "Resolving ...\n%!"; *)
 
       Metis_rules.RESOLVE (inst tyinsts hatom)
         (INST_TYPE tyinsts th1) (INST_TYPE tyinsts th2)
@@ -10141,31 +10126,37 @@ let rec hol_of_thm axioms fth =
       let m = type_unify (type_of ht) (type_of hs) [] in
       let hlit, hs, ht = inst m hlit, inst m hs, inst m ht in
 
+(*
       if !metisverb then begin
         Format.printf "Trying to replace %s : %s with %s : %s\n%!"
           (string_of_term hs) (string_of_type (type_of hs))
           (string_of_term ht) (string_of_type (type_of ht));
         Format.printf "In %s\n%!" (string_of_term hlit)
       end;
+*)
 
       let heq = mk_eq (hs, ht) in
       let conv = PATH_CONV hpath (PURE_ONCE_REWRITE_CONV [ASSUME heq]) in
       let hlit' = CONV_RULE conv (ASSUME hlit) in
+(*
       if !metisverb then Format.printf "hlit = %s, hlit' = %s\n%!"
         (string_of_term hlit) (string_of_thm hlit');
 
       if hs <> ht then assert (concl hlit' <> hlit);
+ *)
       (try Metis_rules.DISCH_DISJS [heq; hlit] hlit'
       with Failure _ -> failwith "equality")
   in
     (* eliminate duplicates in clause *)
     let hth = CONV_RULE DISJ_CANON_CONV hth in
+(*
     if !metisverb then begin
       Format.printf "hol_of_thm finished\n%!";
       let hth' = Metis_prover.Thm.clause fth |> Metis_prover.Literal.Set.toList |> Metis_mapping.hol_of_clause env in
       Format.printf "hol_of_thm returned:\n%s\n for\n%s\n%!"
         (string_of_term (concl hth)) (string_of_term hth')
     end;
+*)
     hth
 
 end
@@ -10180,7 +10171,7 @@ let metis_name = string_of_int
 
 let rec metis_of_term env consts tm =
   if is_var tm && not (List.mem tm consts) then
-    (Metis_prover.Term.Var(metis_name (Meson.fol_of_var tm)))
+    (Metis_prover.Term.Tvar(metis_name (Meson.fol_of_var tm)))
   else (
     let f,args = strip_comb tm in
     if List.mem f env then failwith "metis_of_term: higher order" else
@@ -10321,15 +10312,18 @@ let SIMPLE_METIS_REFUTE ths =
      we should make that deterministic for proof reconstruction! *)
   Random.init 0;
   let rules = Metis_generate.metis_of_clauses ths in
+(*
   if !metisverb then
   begin
     Format.printf "Original ths:\n%!";
     List.iter (Format.printf "%s\n%!" o string_of_thm) ths
   end;
+*)
   let res = Metis_prover.Loop.run rules in
-  if !metisverb then Metis_prover.Thm.print_proof res;
+  (* if !metisverb then Metis_prover.Thm.print_proof res; *)
   let ths = map (CONV_RULE DISJ_CANON_CONV) ths in
   let proof = without_warnings (fun () -> Metis_reconstruct2.hol_of_thm ths res) in
+(*
   if !metisverb then
   begin
     Format.printf "ths:\n%!";
@@ -10338,9 +10332,12 @@ let SIMPLE_METIS_REFUTE ths =
     print_thm proof;
     Format.printf "Metis end.\n%!";
   end;
+*)
   let allhyps = List.concat (List.map hyp ths) in
+(*
   assert (forall (fun h -> List.mem h allhyps) (hyp proof));
   assert (concl proof = `F`);
+*)
   proof
 
 let PURE_METIS_TAC g =
