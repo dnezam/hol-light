@@ -10011,12 +10011,24 @@ let term_eq_mod_type t1 t2 tyinsts =
     if tminsts = [] then Some tyinsts else None
   with Failure _ -> None
 
+(* pointer inequality unsupported; using != or <> sound off as well
 let rec match_elems f m = function
     ([], []) -> [m]
   | ([],  _) -> []
   | (x :: xs, ys) -> List.map (fun y -> match f x y m with
-        Some m' -> match_elems f m' (xs, List.filter ((<>) y) ys)
+        Some m' -> match_elems f m' (xs, List.filter ((!=) y) ys)
       | None -> []) ys |> List.concat
+*)
+let rec match_elems f m = function
+    ([], []) -> [m]
+  | ([],  _) -> []
+  | (x :: xs, ys) ->
+    let rec go acc = function
+      [] -> []
+    | y :: rest -> (match f x y m with
+        Some m' -> match_elems f m' (xs, List.rev_append acc rest)
+      | None -> []) @ go (y :: acc) rest
+    in go [] ys
 
 let match_fo_ho_clause vars = match_elems
   (fun ft ht m -> try Some (Metis_unify.unify_fo_ho_literal vars ft ht m) with Metis_unify.Unify -> None)
