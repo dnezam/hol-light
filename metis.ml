@@ -6410,7 +6410,7 @@ type qterm =
     | (((q1, q2) as q1_q2) :: qs) ->
       if q1 == q2 then cmp qs else
         match q1_q2 with
-          (Qvar,Qvar) -> 0
+          (Qvar,Qvar) -> cmp qs (* was 0 - bug in metis? *)
         | (Qvar, Fn _) -> -1
         | (Fn _, Qvar) -> 1
         | (Fn (f1, f1'), Fn (f2, f2')) -> fnCmp (f1,f1') (f2,f2') qs
