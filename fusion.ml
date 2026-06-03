@@ -9,6 +9,22 @@
 
 needs "lib.ml";;
 
+(* let aconv_fast_hits = ref 0;; *)
+(* let aconv_phys_eq = ref 0;; *)
+(* let aconv_total_calls = ref 0;; *)
+
+(* let aconv_reset () = *)
+(*   aconv_total_calls := 0; aconv_phys_eq := 0; aconv_fast_hits := 0;; *)
+(* let aconv_report () = *)
+(*   let pct n d = if d = 0 then 0.0 else 100.0 *. float_of_int n /. float_of_int d in *)
+(*   let env_rejected = !aconv_phys_eq - !aconv_fast_hits in *)
+(*   Printf.printf *)
+(*     "calls: %d | fast hits: %d | env-rejected: %d | hit rate: %.1f%% | env-reject rate: %.1f%%\n" *)
+(*     !aconv_total_calls !aconv_fast_hits *)
+(*     env_rejected *)
+(*     (pct !aconv_fast_hits !aconv_total_calls) *)
+(*     (pct env_rejected !aconv_total_calls);; *)
+
 module type Hol_kernel =
   sig
       type hol_type = private
@@ -457,6 +473,29 @@ module Hol : Hol_kernel = struct
 
   let alphaorder = orda []
 
+  let aconv =
+    let rec alphavars env tm1 tm2 =
+      match env with
+        [] -> compare tm1 tm2 = 0
+      | (t1,t2)::oenv ->
+         if compare tm1 t1 = 0 then compare tm2 t2 = 0
+         else if compare tm2 t2 = 0 then false
+         else alphavars oenv tm1 tm2 in
+    let rec raconv env tm1 tm2 =
+      (* (incr aconv_total_calls; *)
+      (*  tm1 == tm2 && *)
+      (*  ((incr aconv_phys_eq; true) && *)
+      (*   forall (fun (x,y) -> x = y) env) && *)
+      (*  (incr aconv_fast_hits; true)) || *)
+      match (tm1,tm2) with
+        Var(_,_),Var(_,_) -> alphavars env tm1 tm2
+      | Const(_,_),Const(_,_) -> compare tm1 tm2 = 0
+      | Comb(s1,t1),Comb(s2,t2) -> raconv env s1 s2 && raconv env t1 t2
+      | Abs(Var(_,ty1) as x1,t1),Abs(Var(_,ty2) as x2,t2) ->
+                compare ty1 ty2 = 0 && raconv ((x1,x2)::env) t1 t2
+      | _ -> false in
+    fun tm1 tm2 -> raconv [] tm1 tm2
+
   let rec term_union l1 l2 =
     match (l1,l2) with
       ([],l2) -> l2
@@ -501,7 +540,7 @@ module Hol : Hol_kernel = struct
   let TRANS (Sequent(asl1,c1)) (Sequent(asl2,c2)) =
     match (c1,c2) with
       Comb((Comb(Const("=",_),_) as eql),m1),Comb(Comb(Const("=",_),m2),r)
-        when alphaorder m1 m2 = 0 -> Sequent(term_union asl1 asl2,Comb(eql,r))
+        when aconv m1 m2 -> Sequent(term_union asl1 asl2,Comb(eql,r))
     | _ -> failwith "TRANS"
 
 (* ------------------------------------------------------------------------- *)
@@ -544,7 +583,7 @@ module Hol : Hol_kernel = struct
 
   let EQ_MP (Sequent(asl1,eq)) (Sequent(asl2,c)) =
     match eq with
-      Comb(Comb(Const("=",_),l),r) when alphaorder l c = 0
+      Comb(Comb(Const("=",_),l),r) when aconv l c
         -> Sequent(term_union asl1 asl2,r)
     | _ -> failwith "EQ_MP"
 
