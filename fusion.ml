@@ -482,7 +482,7 @@ module Hol : Hol_kernel = struct
          else if tm2 = t2 then false
          else alphavars oenv tm1 tm2 in
     let rec raconv env tm1 tm2 =
-      (tm1 == tm2 && env = []) ||
+      (tm1 = tm2 && env = []) ||
       (* (incr aconv_total_calls; *)
       (*  tm1 == tm2 && *)
       (*  ((incr aconv_phys_eq; true) && *)
