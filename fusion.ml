@@ -476,10 +476,10 @@ module Hol : Hol_kernel = struct
   let aconv =
     let rec alphavars env tm1 tm2 =
       match env with
-        [] -> compare tm1 tm2 = 0
+        [] -> tm1 = tm2
       | (t1,t2)::oenv ->
-         if compare tm1 t1 = 0 then compare tm2 t2 = 0
-         else if compare tm2 t2 = 0 then false
+         if tm1 = t1 then tm2 = t2
+         else if tm2 = t2 then false
          else alphavars oenv tm1 tm2 in
     let rec raconv env tm1 tm2 =
       (tm1 == tm2 && env = []) ||
@@ -490,10 +490,10 @@ module Hol : Hol_kernel = struct
       (*  (incr aconv_fast_hits; true)) || *)
       match (tm1,tm2) with
         Var(_,_),Var(_,_) -> alphavars env tm1 tm2
-      | Const(_,_),Const(_,_) -> compare tm1 tm2 = 0
+      | Const(_,_),Const(_,_) -> tm1 = tm2
       | Comb(s1,t1),Comb(s2,t2) -> raconv env s1 s2 && raconv env t1 t2
       | Abs(Var(_,ty1) as x1,t1),Abs(Var(_,ty2) as x2,t2) ->
-                compare ty1 ty2 = 0 && raconv ((x1,x2)::env) t1 t2
+                ty1 = ty2 && raconv ((x1,x2)::env) t1 t2
       | _ -> false in
     fun tm1 tm2 -> raconv [] tm1 tm2
 
